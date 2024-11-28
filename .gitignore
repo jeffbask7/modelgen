@@ -1,0 +1,11 @@
+.venv
+src/__pycache__/
+.env
+*.png
+*.grb2
+*.grib
+*.idx
+*.log
+*.geojson
+*.tiff
+uswtdb*.csv
