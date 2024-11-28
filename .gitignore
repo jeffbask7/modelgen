@@ -1,0 +1,9 @@
+.venv
+.env
+*.png
+*.grb2
+*.grib
+*.log
+*.geojson
+*.tiff
+uswtdb*.csv
