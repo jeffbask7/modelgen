@@ -156,12 +156,6 @@ def plot_image(inputfile, model='gfs'):
     conn.commit()
 
 def pg_conn():
-    # Database connection details
-    """ DB_HOST = 'localhost'
-    DB_PORT = '5432'
-    DB_NAME = 'geoserver_db'
-    DB_USER = 'geoserver_user'
-    DB_PASS = 'geoserver' """
 
     DB_HOST=os.getenv("DB_HOST"),
     DB_NAME=os.getenv("DB_NAME"),
