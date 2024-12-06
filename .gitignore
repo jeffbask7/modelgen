@@ -1,5 +1,6 @@
 .venv
 src/__pycache__/
+data/geo/*
 .env
 *.png
 *.grb2

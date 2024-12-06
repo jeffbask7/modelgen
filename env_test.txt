@@ -1,0 +1,1 @@
+localhost, geoserver_db, geoserver, 5432, geoserver_user

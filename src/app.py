@@ -36,8 +36,9 @@ from osgeo import gdal
 from collections import defaultdict
 from scipy.spatial import KDTree
 from typing import Optional
+from dotenv import load_dotenv
 
-
+load_dotenv()
 """ @dataclass
 class DateTimeParts:
     year: int
@@ -109,16 +110,19 @@ def getInitTime_GFSGraph():
     mydate = (dt.datetime.now())
     dateparts = DateTimeParts.from_datetime(mydate)
 
-    if dateparts.hour >= 8 and dateparts.hour <= 14:
+    if dateparts.hour >= 14 and dateparts.hour <= 19:
         hour_str = '00'
-    elif dateparts.hour >= 15 and dateparts.hour <= 21:
+    elif dateparts.hour >= 20 and dateparts.hour <= 23:
         hour_str = '06'
-    elif dateparts.hour >= 22:
-        hour_str = '12'
-    elif dateparts.hour >= 0 and dateparts.hour <= 4:
-        hour_str = '12'
+    elif dateparts.hour > 23:
+        hour_str = '06'
+    elif dateparts.hour >= 0 and dateparts.hour <= 1:
+        hour_str = '06'
         dateparts = DateTimeParts.from_datetime(mydate - dt.timedelta(days=1))
     elif dateparts.hour >= 2   and dateparts.hour <= 7:
+        hour_str = '12'
+        dateparts = DateTimeParts.from_datetime(mydate - dt.timedelta(days=1))
+    elif dateparts.hour >= 8   and dateparts.hour <= 13:
         hour_str = '18'
         dateparts = DateTimeParts.from_datetime(mydate - dt.timedelta(days=1))
     else:
@@ -171,7 +175,8 @@ def buildTree(model, grbs):
     grb1 = grbs[1]
     print(grb1)
     lats, lons = grb1.latlons()
-    #lons = ((lons + 180) % 360) - 180 #GFS only
+    if model in ['gfs', 'gfs-graph']:
+        lons = ((lons + 180) % 360) - 180 #GFS only
     grid_points = np.column_stack((lats.ravel(), lons.ravel()))
     # Build a KDTree from the lat/lon grid
     return KDTree(grid_points)
@@ -237,6 +242,8 @@ def createOutput(var, nearest_indices, df_coords, grbs, model):
 
     # The final DataFrame contains the time series for each ICAO code
     print(result_df)
+    csv_out = f'/data/point/{model}/output_data_{var_out}.csv'
+    result_df.to_csv(csv_out, index=False)
 
     features = []
     for icao, records in data.items():
@@ -412,6 +419,100 @@ def getFilterGrib_MaxMin(runDate, indexHour, model='nbm'):
     #gribFile = f"data/gribs/{model.lower()}/{model.lower()}-{runDate}_{runTime_str}_{fcsthr_str}.grb2"
     #gribFile = f"data/gribs/{model.lower()}/latest/{model.lower()}-{fcsthr_str}.grb2"
     gribFile = f"data/gribs/{model.lower()}/maxmin/{model.lower()}-{fcsthr_str}.grb2"
+
+    if os.path.exists(gribFile):
+        os.remove(gribFile)
+
+    if len(index_list) > 0:
+        for byte_range in index_list:
+            print(f"Downloading byte range: {byte_range}")
+            command = rf'curl --range {byte_range} {url_name} >> {gribFile}'
+            os.system(command)
+        else:
+            print(f'no matches for forecast hour {fcsthr_str} ')
+
+    #return gribFile
+    return index_list, gribFile
+
+def getFilterGrib(runDate, indexHour, model='gfs-test'):
+    index_list = []
+    runTime = runDate.hour
+    year = runDate.year
+    month = runDate.month
+    day = runDate.day
+    fcsthr = indexHour
+    runTime_str = str(runTime).zfill(2)
+    fcsthr_str = str(fcsthr).zfill(3)
+    runDate = rf'{year}{str(month).zfill(2)}{str(day).zfill(2)}'
+    byte_ranges = defaultdict(list)
+
+    if model == 'nbm':
+        url_name = rf'https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.{runDate}/{runTime_str}/core/blend.t{runTime_str}z.core.f{fcsthr_str}.co.grib2'
+    elif model == 'gfs-test':
+        url_name = rf'https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{runDate}/{runTime_str}/atmos/gfs.t{runTime_str}z.pgrb2.0p25.f{fcsthr_str}'
+    elif model == 'gfs-graph':
+        url_name = rf'https://noaa-nws-graphcastgfs-pds.s3.amazonaws.com/graphcastgfs.{runDate}/{runTime_str}/forecasts_13_levels/graphcastgfs.t{runTime_str}z.pgrb2.0p25.f{fcsthr_str}'
+    else:
+        raise ValueError('Invalid model type')
+
+    index_url = f"{url_name}.idx"
+    print(f"Index URL: {index_url}")
+    
+    response = requests.get(index_url)
+    index_content = response.text.splitlines()
+
+# Corrected conditions dictionary with unique keys
+    conditions = {
+        'PRMSL': lambda param, level: param == 'PRMSL',
+        'REFC': lambda param, level: param == 'REFC',
+        'CSNOW': lambda param, level: param == 'CSNOW',
+        'CFRZR': lambda param, level: param == 'CFRZR',
+        'CICEP': lambda param, level: param == 'CICEP',
+        'CFRZR': lambda param, level: param == 'CFRZR',
+        'HGT_500mb': lambda param, level: param == 'HGT' and '500 mb' in level,
+        'HGT_1000mb': lambda param, level: param == 'HGT' and '1000 mb' in level,
+        'TMP_2m_above_ground': lambda param, level: param == 'TMP' and '2 m above ground' in level,
+        'UGRD_10m_above_ground': lambda param, level: param == 'UGRD' and '10 m above ground' in level,
+        'VGRD_10m_above_ground': lambda param, level: param == 'VGRD' and '10 m above ground' in level,
+        'UGRD_100m_above_ground': lambda param, level: param == 'UGRD' and '100 m above ground' in level,
+        'VGRD_100m_above_ground': lambda param, level: param == 'VGRD' and '100 m above ground' in level,
+        'APCP': lambda param, level: param == 'APCP' and ((len(level) < 30) and (level.split(":"))[-1] == ''),
+    }
+
+    index_length = len(index_content)
+
+    # Process each line in the index file
+    for i in range(index_length):
+        line = index_content[i]
+        indexDict = line.split(":")
+        startByte = indexDict[1]
+        param = indexDict[3].strip()
+        level = ":".join(indexDict[4:]).strip()
+
+        # Check if the current line matches any condition
+        matched = False
+        for condition_name, condition_func in conditions.items():
+            if condition_func(param, level):
+                matched = True
+                # Determine the end byte
+                if i < index_length - 1:
+                    next_line = index_content[i + 1]
+                    next_indexDict = next_line.split(":")
+                    endByte = next_indexDict[1]
+                    byte_length = int(endByte) - int(startByte)
+                else:
+                    # Last line; we don't have a next start byte
+                    byte_length = 0  # Or handle accordingly if you know the total file size
+
+                # Append the byte range to the index list
+                #index_list.append((int(startByte), int(endByte)))
+                index_list.append(f'{startByte}-{endByte}') #USE FOR CURL
+                #index_list.append((int(startByte), byte_length)) #USE FOR EARTKKIT.DATA
+                print(f"Matched {param} {level}: Start byte {startByte}, Length {byte_length}")
+                break  # No need to check other conditions once matched
+
+    gribFile = f"data/gribs/{model.lower()}/latest/{model.lower()}-{fcsthr_str}.grb2"
+    #gribFile = f"data/gribs/{model.lower()}/maxmin/{model.lower()}-{fcsthr_str}.grb2"
 
     if os.path.exists(gribFile):
         os.remove(gribFile)

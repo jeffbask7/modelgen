@@ -22,6 +22,8 @@ from typing import Optional
 import psycopg2
 from dotenv import load_dotenv
 
+load_dotenv()
+
 
 
 def colortable_gen():
@@ -95,7 +97,7 @@ def plot_image(inputfile, model='gfs'):
         if model == 'nbm':
             ds = ds.coarsen(y=8, x=8, boundary='trim').mean()
         if model == 'ndfd':
-            ds = ds.coarsen(latitude=2, longitude=2, boundary='trim').mean()
+            ds = ds.coarsen(y=2, x=2, boundary='trim').mean()
         variables = list(ds.data_vars)
         variable = ds[variables[0]]
         variable = variable.rio.write_crs("EPSG:4326")
@@ -140,8 +142,8 @@ def plot_image(inputfile, model='gfs'):
             plt.title(f"{model.upper()} {shortname} {time_init}Z fcst hr {step} {time_valid}Z")
             fapi_filename = f"static/data/plots/{model}/{model}_{region}_{shortname}_{str(step).zfill(3)}.png"
             fapi_path = f"{fapi_root}{fapi_filename}"
-            plt.savefig(f"data/images/{model}_plot/{model}_{region}_{shortname}_{str(step).zfill(3)}.png", bbox_inches='tight', pad_inches=0.1)
-            plt.savefig(fapi_path, bbox_inches='tight', pad_inches=0.1)
+            plt.savefig(f"data/images/{model}_plot/{model}_{region}_{shortname}_{str(step).zfill(3)}.png", bbox_inches='tight', pad_inches=0.1, dpi=72)
+            plt.savefig(fapi_path, bbox_inches='tight', pad_inches=0.1, dpi=72)
          
             insert_query = """
             INSERT INTO model_image.image_meta (path_rel, model, wxvar, "initTime", "validTime", step_hours, "stepType", level, ens_type, "creationTime", region)
@@ -157,10 +159,10 @@ def plot_image(inputfile, model='gfs'):
 
 def pg_conn():
 
-    DB_HOST=os.getenv("DB_HOST"),
-    DB_NAME=os.getenv("DB_NAME"),
-    DB_USER=os.getenv("DB_USER"),
-    DB_PASS=os.getenv("DB_PASS"),
+    DB_HOST=os.getenv("DB_HOST")
+    DB_NAME=os.getenv("DB_NAME")
+    DB_USER=os.getenv("DB_USER")
+    DB_PASS=os.getenv("DB_PASS")
     DB_PORT=os.getenv("DB_PORT")
 
     # Connect to the PostGIS database

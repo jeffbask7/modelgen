@@ -33,5 +33,5 @@ df_coords, nearest_indices = targetPointIndex(tree)
 #createOutput('Maximum temperature', nearest_indices, df_coords, grbs, model)
 createOutput('2 metre temperature', nearest_indices, df_coords, grbs, model)
 
-plot_image(latestGrb)
+plot_image(latestGrb, model)
 
