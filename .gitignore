@@ -1,6 +1,7 @@
 .venv
 src/__pycache__/
 data/geo/*
+data/point/*
 .env
 *.png
 *.grb2
@@ -10,3 +11,4 @@ data/geo/*
 *.geojson
 *.tiff
 uswtdb*.csv
+windfarms????.*

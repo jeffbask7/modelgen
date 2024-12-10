@@ -54,6 +54,6 @@ df_coords, nearest_indices = targetPointIndex(tree)
 
 #createOutput('Maximum temperature at 2 metres in the last 6 hours', nearest_indices, df_coords, grbs, model)
 #createOutput('Minimum temperature at 2 metres in the last 6 hours', nearest_indices, df_coords, grbs, model)
-createOutput('2 metre temperature', nearest_indices, df_coords, grbs, model)
+createOutput('2 metre temperature', nearest_indices, df_coords, grbs=grbs, model=model)
 
 plot_image(gribFile, model)

@@ -187,9 +187,10 @@ def targetPointIndex(tree):
     nearest_indices = [tree.query([lat, lon])[1] for lat, lon in coordinates]
     return df_coords, nearest_indices
 
-def createOutput(var, nearest_indices, df_coords, grbs, model):   
+def createOutput(var, nearest_indices, df_coords, grbs=None, gribfile=None, model='gfs'):   
     data = {icao: [] for icao in df_coords['ICAO']}
-    #grbs_all = pygrib.open(gribfile)
+    if grbs == None:
+        grbs = pygrib.open(gribfile)
     #tgrb = grbs_all.select(shortName = '2t')
     tgrb = grbs.select(name=var)
     tempgrbs = tgrb
@@ -242,7 +243,18 @@ def createOutput(var, nearest_indices, df_coords, grbs, model):
 
     # The final DataFrame contains the time series for each ICAO code
     print(result_df)
-    csv_out = f'/data/point/{model}/output_data_{var_out}.csv'
+
+    # Determine file name based on the variable type
+    if var == 'Maximum temperature':
+        var_out = 'maxtemp'
+    elif var == 'Minimum temperature':
+        var_out = 'mintemp'
+    elif var == '2 metre temperature':
+        var_out = 'temp'   
+    else:
+        var_out = var
+
+    csv_out = f'data/point/{model}/output_data_{var_out}.csv'
     result_df.to_csv(csv_out, index=False)
 
     features = []
@@ -282,15 +294,7 @@ def createOutput(var, nearest_indices, df_coords, grbs, model):
         "features": features
     }
 
-    # Determine file name based on the variable type
-    if var == 'Maximum temperature':
-        var_out = 'maxtemp'
-    elif var == 'Minimum temperature':
-        var_out = 'mintemp'
-    elif var == '2 metre temperature':
-        var_out = 'temp'   
-    else:
-        var_out = var
+    
     
     # Export to GeoJSON file
     """ with open(f'output_data_{var_out}.geojson', 'w') as f:
